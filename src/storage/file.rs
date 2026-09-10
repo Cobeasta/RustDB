@@ -2,7 +2,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::io::prelude::*;
-use std::io::{self, SeekFrom};
+use std::io::SeekFrom;
 use std::path::Path;
 
 const PAGE_SIZE_BYTES: u64 = 4096;
@@ -50,7 +50,7 @@ struct FileHeader {
 }
 impl FileHeader {}
 
-pub fn open_database_file() -> Result<(DatabaseFile), std::io::Error> {
+pub fn open_database_file() -> Result<DatabaseFile, std::io::Error> {
     let path = Path::new(DATABASE_FILEPATH);
     let mut file = OpenOptions::new()
         .read(true)
@@ -87,9 +87,9 @@ pub fn open_database_file() -> Result<(DatabaseFile), std::io::Error> {
             version, page_size, page_count
         );
         FileHeader {
-            version: version,
-            page_size: page_size,
-            page_count: page_count,
+            version,
+            page_size,
+            page_count,
         }
     };
 
