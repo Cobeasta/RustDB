@@ -1,11 +1,11 @@
+use crate::storage::constants;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::SeekFrom;
 use std::io::Write;
 use std::io::prelude::*;
-use std::io::SeekFrom;
 use std::path::Path;
 
-const PAGE_SIZE_BYTES: u64 = 4096;
 const DATABASE_FILEPATH: &str = "database.db";
 const FILE_HEADER_SIZE: usize = 20;
 const PAGE_COUNT_OFFSET: u64 = 12;
@@ -14,10 +14,10 @@ pub struct DatabaseFile {
     header: FileHeader,
 }
 impl DatabaseFile {
-    pub fn read_page(&mut self, page_id: u64) -> std::io::Result<Vec<u8>> {
+    pub fn read_page(&mut self, page_id: u64) -> std::io::Result<[u8; constants::PAGE_SIZE_BYTES as usize]> {
         self.file
             .seek(SeekFrom::Start(page_id * self.header.page_size))?;
-        let mut buffer = vec![0; self.header.page_size as usize];
+        let mut buffer: [u8; constants::PAGE_SIZE_BYTES as usize] = [0u8; constants::PAGE_SIZE_BYTES as usize];
         self.file.read_exact(&mut buffer)?;
         Ok(buffer)
     }
@@ -31,7 +31,7 @@ impl DatabaseFile {
     pub fn allocate_page(&mut self) -> std::io::Result<u64> {
         let page_id = self.header.page_count;
         // write empty page to file
-        let empty_page = vec![0u8; 4096];
+        let empty_page = vec![0u8; constants::PAGE_SIZE_BYTES as usize];
         self.file.seek(SeekFrom::End(0))?;
         self.file.write_all(&empty_page)?;
 
@@ -48,8 +48,6 @@ struct FileHeader {
     page_size: u64,
     page_count: u64,
 }
-impl FileHeader {}
-
 pub fn open_database_file() -> Result<DatabaseFile, std::io::Error> {
     let path = Path::new(DATABASE_FILEPATH);
     let mut file = OpenOptions::new()
@@ -64,7 +62,7 @@ pub fn open_database_file() -> Result<DatabaseFile, std::io::Error> {
 
         let header = FileHeader {
             version: 1,
-            page_size: PAGE_SIZE_BYTES,
+            page_size: constants::PAGE_SIZE_BYTES,
             page_count: 1,
         };
 
@@ -72,12 +70,12 @@ pub fn open_database_file() -> Result<DatabaseFile, std::io::Error> {
         bytes.extend_from_slice(&header.version.to_le_bytes());
         bytes.extend_from_slice(&header.page_size.to_le_bytes());
         bytes.extend_from_slice(&header.page_count.to_le_bytes());
-        bytes.resize(4096, 0u8);
-        file.write_all(&bytes);
+        bytes.resize(constants::PAGE_SIZE_BYTES as usize, 0u8);
+        file.write_all(&bytes)?;
         header
     } else {
         let mut header_bytes = [0u8; FILE_HEADER_SIZE];
-        file.read_exact(&mut header_bytes);
+        file.read_exact(&mut header_bytes)?;
 
         let version = u32::from_le_bytes(header_bytes[0..4].try_into().unwrap());
         let page_size = u64::from_le_bytes(header_bytes[4..12].try_into().unwrap());
