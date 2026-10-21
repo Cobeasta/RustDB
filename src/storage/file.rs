@@ -6,7 +6,6 @@ use std::io::Write;
 use std::io::prelude::*;
 use std::path::Path;
 
-const DATABASE_FILEPATH: &str = "database.db";
 const FILE_HEADER_SIZE: usize = 20;
 const PAGE_COUNT_OFFSET: u64 = 12;
 pub struct DatabaseFile {
@@ -15,6 +14,12 @@ pub struct DatabaseFile {
 }
 impl DatabaseFile {
     pub fn read_page(&mut self, page_id: u64) -> std::io::Result<[u8; constants::PAGE_SIZE_BYTES as usize]> {
+        if page_id >= self.header.page_count {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("page {} does not exist (page count {})", page_id, self.header.page_count),
+            ));
+        }
         self.file
             .seek(SeekFrom::Start(page_id * self.header.page_size))?;
         let mut buffer: [u8; constants::PAGE_SIZE_BYTES as usize] = [0u8; constants::PAGE_SIZE_BYTES as usize];
@@ -48,8 +53,7 @@ struct FileHeader {
     page_size: u64,
     page_count: u64,
 }
-pub fn open_database_file() -> Result<DatabaseFile, std::io::Error> {
-    let path = Path::new(DATABASE_FILEPATH);
+pub fn open_database_file(path: impl AsRef<Path>) -> Result<DatabaseFile, std::io::Error> {
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
